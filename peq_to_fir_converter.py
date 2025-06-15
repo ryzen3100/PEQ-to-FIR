@@ -263,6 +263,48 @@ class PEQtoFIR:
         
         return fir_coeffs
     
+    def check_phase_linearity(self, fir_coeffs: np.ndarray) -> Dict:
+        """
+        Check if the FIR filter has linear phase
+        
+        Args:
+            fir_coeffs: FIR filter coefficients
+            
+        Returns:
+            Dictionary with phase linearity metrics
+        """
+        N = len(fir_coeffs)
+        center = (N - 1) // 2
+        
+        # 1. Symmetry error
+        left_half = fir_coeffs[:center]
+        right_half = fir_coeffs[-center:][::-1]
+        symmetry_error = np.mean((left_half - right_half)**2)
+        
+        # 2. Impulse peak location
+        peak_idx = np.argmax(np.abs(fir_coeffs))
+        peak_offset = peak_idx - center
+        
+        # 3. Group delay check
+        w, h = freqz(fir_coeffs, worN=1024, fs=self.fs)
+        _, gd = group_delay((fir_coeffs, [1]), w=w, fs=self.fs)
+        gd_std = np.std(gd[10:-10]) if len(gd) > 20 else np.std(gd)
+        
+        # 4. Overall assessment
+        is_linear_phase = (
+            symmetry_error < 1e-10 and
+            abs(peak_offset) < 2 and
+            gd_std < 0.01
+        )
+        
+        return {
+            'symmetry_error': float(symmetry_error),
+            'peak_offset': int(peak_offset),
+            'group_delay_std': float(gd_std),
+            'is_linear_phase': bool(is_linear_phase),
+            'phase_type': 'Linear Phase' if is_linear_phase else 'Non-linear Phase'
+        }
+    
     def analyze_filter(self, fir_coeffs: np.ndarray, peq_filters: List[Dict], 
                       use_file_preamp: bool = True,
                       use_auto_preamp: bool = True,
@@ -281,6 +323,7 @@ class PEQtoFIR:
         # Calculate actual FIR response
         w, h = freqz(fir_coeffs, worN=8192, fs=self.fs)
         actual_db = 20 * np.log10(np.abs(h))
+        phase = np.unwrap(np.angle(h))
         
         # Get the final target response using the unified method
         target_freq, target_db = self.get_final_target_response(
@@ -297,6 +340,36 @@ class PEQtoFIR:
         # Calculate group delay
         _, gd = freqz(fir_coeffs, worN=8192, fs=self.fs, whole=False)
         group_delay_ms = -np.diff(np.unwrap(np.angle(h))) / (2 * np.pi * np.diff(w)) * 1000
+        
+        # Phase linearity analysis
+        center = (len(fir_coeffs) - 1) // 2
+        
+        # 1. Symmetry error
+        left_half = fir_coeffs[:center]
+        right_half = fir_coeffs[-center:][::-1]
+        symmetry_error = np.mean((left_half - right_half)**2)
+        
+        # 2. Group delay standard deviation
+        gd_std = np.std(gd[10:-10]) if len(gd) > 20 else np.std(gd)
+        
+        # 3. Phase linearity (R²)
+        from sklearn.metrics import r2_score
+        try:
+            linear_fit = np.polyfit(w[10:-10], phase[10:-10], 1)
+            phase_linear = np.polyval(linear_fit, w[10:-10])
+            phase_r2 = r2_score(phase[10:-10], phase_linear)
+        except:
+            phase_r2 = 0
+        
+        # 4. Maximum phase deviation
+        ideal_delay = center / self.fs
+        ideal_phase = -w * ideal_delay * 2 * np.pi
+        phase_deviation = np.abs(phase - ideal_phase)
+        max_phase_deviation_deg = np.degrees(np.max(phase_deviation[10:-10]))
+        
+        # 5. Impulse response peak location
+        peak_idx = np.argmax(np.abs(fir_coeffs))
+        peak_offset = peak_idx - center
         
         if plot:
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))

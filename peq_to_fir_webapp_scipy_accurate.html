@@ -847,15 +847,76 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707</textarea>
             return fir;
         }
         
+        // Calculate phase linearity metrics
+        function calculatePhaseMetrics(fir) {
+            const N = fir.length;
+            const center = Math.floor((N - 1) / 2);
+            
+            // 1. Symmetry error
+            let symmetryError = 0;
+            for (let i = 0; i < center; i++) {
+                const diff = fir[i] - fir[N - 1 - i];
+                symmetryError += diff * diff;
+            }
+            symmetryError = symmetryError / center;
+            
+            // 2. Impulse peak location
+            let maxVal = 0;
+            let peakIdx = 0;
+            for (let i = 0; i < N; i++) {
+                if (Math.abs(fir[i]) > maxVal) {
+                    maxVal = Math.abs(fir[i]);
+                    peakIdx = i;
+                }
+            }
+            const peakOffset = peakIdx - center;
+            
+            // 3. Simple phase linearity check
+            const isLinearPhase = symmetryError < 1e-10 && Math.abs(peakOffset) < 2;
+            
+            return {
+                symmetryError: symmetryError.toExponential(3),
+                peakOffset: peakOffset,
+                isLinearPhase: isLinearPhase,
+                phaseType: isLinearPhase ? 'Linear Phase' : 'Non-linear Phase'
+            };
+        }
+        
         function showDownloadButtons() {
             const section = document.getElementById('downloadSection');
             const buttons = document.getElementById('downloadButtons');
             
             buttons.innerHTML = '';
             
+            // Add phase analysis info
+            const phaseInfo = document.createElement('div');
+            phaseInfo.style.marginBottom = '15px';
+            phaseInfo.style.fontSize = '14px';
+            phaseInfo.innerHTML = '<h4>Phase Analysis:</h4>';
+            
             for (let fs in firResults) {
                 const result = firResults[fs];
+                const metrics = calculatePhaseMetrics(result.coefficients);
+                
+                phaseInfo.innerHTML += `<p><strong>${fs}Hz:</strong> ${metrics.phaseType} ` +
+                    `(Symmetry Error: ${metrics.symmetryError}, ` +
+                    `Peak Offset: ${metrics.peakOffset} samples)</p>`;
+                
                 const filename = `FIR_${result.phaseType}_${result.numTaps}taps_${fs}Hz`;
+                
+                // Add phase analysis explanation
+                if (fs === '48000') { // Add explanation after last result
+                    phaseInfo.innerHTML += `
+                    <div style="margin-top: 15px; padding: 15px; background: #e8f4f8; border-radius: 5px; font-size: 13px;">
+                        <h5 style="margin-bottom: 10px;">Understanding Phase Analysis:</h5>
+                        <ul style="text-align: left; margin-left: 20px;">
+                            <li><strong>Linear Phase:</strong> The filter has no phase distortion. All frequencies are delayed by the same amount.</li>
+                            <li><strong>Symmetry Error:</strong> Measures how symmetric the impulse response is. Values < 1e-10 indicate perfect linear phase.</li>
+                            <li><strong>Peak Offset:</strong> Shows where the impulse response peak is located relative to the center. Should be 0 or ±1 for linear phase.</li>
+                            <li><strong>Criteria for Linear Phase:</strong> Symmetry Error < 1e-10 AND Peak Offset < 2 samples</li>
+                        </ul>
+                    </div>`;
+                }
                 
                 // WAV button
                 const wavBtn = document.createElement('button');
@@ -872,6 +933,7 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707</textarea>
                 buttons.appendChild(txtBtn);
             }
             
+            section.insertBefore(phaseInfo, buttons);
             section.style.display = 'block';
         }
         
