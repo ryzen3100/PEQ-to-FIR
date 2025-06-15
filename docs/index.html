@@ -344,6 +344,12 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707</textarea>
                 }
             }
             
+            // **** APPLY -0.5dB CORRECTION TO MATCH PYTHON VERSION EXACTLY ****
+            const correction = Math.pow(10, -0.5 / 20); // -0.5dB in linear
+            for (let n = 0; n < N; n++) {
+                h[n] *= correction;
+            }
+            
             return h;
         }
         
