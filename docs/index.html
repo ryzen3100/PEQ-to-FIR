@@ -888,8 +888,15 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707</textarea>
             
             buttons.innerHTML = '';
             
+            // Remove any existing phase info
+            const existingPhaseInfo = section.querySelector('.phase-analysis');
+            if (existingPhaseInfo) {
+                existingPhaseInfo.remove();
+            }
+            
             // Add phase analysis info
             const phaseInfo = document.createElement('div');
+            phaseInfo.className = 'phase-analysis';
             phaseInfo.style.marginBottom = '15px';
             phaseInfo.style.fontSize = '14px';
             phaseInfo.innerHTML = '<h4>Phase Analysis:</h4>';
