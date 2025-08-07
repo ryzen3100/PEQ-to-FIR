@@ -1,7 +1,7 @@
 import numpy as np
-from scipy.signal import firwin2, freqz, minimum_phase
+from scipy.signal import firwin2, freqz, minimum_phase, group_delay  # type: ignore
 import matplotlib.pyplot as plt
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, cast
 import json
 
 class PEQtoFIR:
@@ -261,7 +261,7 @@ class PEQtoFIR:
         test_db = 20 * np.log10(np.abs(h_test))
         print(f"Final FIR response range: {np.min(test_db):.1f} to {np.max(test_db):.1f} dB")
         
-        return fir_coeffs
+        return cast(np.ndarray, fir_coeffs)
     
     def check_phase_linearity(self, fir_coeffs: np.ndarray) -> Dict:
         """
@@ -287,7 +287,7 @@ class PEQtoFIR:
         
         # 3. Group delay check
         w, h = freqz(fir_coeffs, worN=1024, fs=self.fs)
-        _, gd = group_delay((fir_coeffs, [1]), w=w, fs=self.fs)
+        _, gd = group_delay((fir_coeffs, [1]), w=w, fs=self.fs)  # type: ignore[arg-type]
         gd_std = np.std(gd[10:-10]) if len(gd) > 20 else np.std(gd)
         
         # 4. Overall assessment
@@ -331,7 +331,7 @@ class PEQtoFIR:
         )
         
         # Interpolate target to match actual frequencies
-        target_interp = np.interp(w, target_freq, target_db)
+        target_interp = np.interp(w, target_freq, target_db)  # type: ignore[operator]
         
         # Calculate metrics
         max_error = np.max(np.abs(actual_db - target_interp))
@@ -339,7 +339,7 @@ class PEQtoFIR:
         
         # Calculate group delay
         _, gd = freqz(fir_coeffs, worN=8192, fs=self.fs, whole=False)
-        group_delay_ms = -np.diff(np.unwrap(np.angle(h))) / (2 * np.pi * np.diff(w)) * 1000
+        group_delay_ms = -np.diff(np.unwrap(np.angle(h))) / (2 * np.pi * np.diff(cast(np.ndarray, w))) * 1000  # type: ignore[arg-type]
         
         # Phase linearity analysis
         center = (len(fir_coeffs) - 1) // 2
@@ -353,10 +353,10 @@ class PEQtoFIR:
         gd_std = np.std(gd[10:-10]) if len(gd) > 20 else np.std(gd)
         
         # 3. Phase linearity (R²)
-        from sklearn.metrics import r2_score
+        from sklearn.metrics import r2_score  # type: ignore
         try:
-            linear_fit = np.polyfit(w[10:-10], phase[10:-10], 1)
-            phase_linear = np.polyval(linear_fit, w[10:-10])
+            linear_fit = np.polyfit(w[10:-10], phase[10:-10], 1)  # type: ignore[operator]
+            phase_linear = np.polyval(linear_fit, w[10:-10])  # type: ignore[arg-type]
             phase_r2 = r2_score(phase[10:-10], phase_linear)
         except:
             phase_r2 = 0
@@ -461,7 +461,7 @@ if __name__ == "__main__":
     
     # Design FIR filter
     print("Designing linear phase FIR filter...")
-    fir_linear = converter.design_fir_filter(example_peq, apply_preamp=True, phase_type='linear')
+    fir_linear = converter.design_fir_filter(example_peq, use_file_preamp=True, use_auto_preamp=True, phase_type='linear')
     
     # Analyze the result
     print("\nAnalyzing filter response...")
@@ -474,7 +474,7 @@ if __name__ == "__main__":
     
     # Design minimum phase version
     print("\nDesigning minimum phase FIR filter...")
-    fir_minimum = converter.design_fir_filter(example_peq, apply_preamp=True, phase_type='minimum')
+    fir_minimum = converter.design_fir_filter(example_peq, use_file_preamp=True, use_auto_preamp=True, phase_type='minimum')
     
     # Save coefficients
     np.savetxt('fir_linear_phase.txt', fir_linear)

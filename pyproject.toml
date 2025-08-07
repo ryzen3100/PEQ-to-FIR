@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=64", "wheel", "scikit-build>=0.17.7"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "peq2fir"
+version = "0.1.0"
+description = "PEQ to FIR Converter"
+requires-python = ">=3.8"
+keywords = ["audio", "eq", "fir"]
+
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.7.0",
+    "matplotlib>=3.3.0",
+    "scikit-learn>=1.0.0",
+    "tkinterdnd2>=0.3.0",
+]
+
+tool.sdists_gen.targets = [
+  "pyproject.toml",
+]
+
+[project.scripts]
+peq2fir = "peq2fir.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["peq2fir"]

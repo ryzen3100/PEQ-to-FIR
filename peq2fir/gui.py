@@ -1,10 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog, messagebox
-from tkinterdnd2 import DND_FILES, TkinterDnD
+from tkinterdnd2 import DND_FILES, TkinterDnD  # type: ignore[import-untyped]
 import os
 import threading
 import numpy as np
-from scipy.io import wavfile
+from scipy.io import wavfile  # type: ignore[import-untyped]
 import json
 from .converter import PEQtoFIR
 import matplotlib
@@ -42,7 +42,7 @@ class PEQtoFIRGUI:
     def setup_ui(self):
         # Main container
         main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        main_frame.grid(row=0, column=0, sticky='nsew')
         
         # Configure grid weights
         self.root.columnconfigure(0, weight=1)
@@ -53,7 +53,7 @@ class PEQtoFIRGUI:
         
         # Left panel - Text editor and controls
         left_panel = ttk.Frame(main_frame)
-        left_panel.grid(row=0, column=0, rowspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5))
+        left_panel.grid(row=0, column=0, rowspan=2, sticky='nsew', padx=(0, 5))
         
         # Title
         title_label = ttk.Label(left_panel, text="PEQ Settings Editor", font=('Helvetica', 12, 'bold'))
@@ -61,22 +61,22 @@ class PEQtoFIRGUI:
         
         # Text editor with drag & drop
         editor_frame = ttk.LabelFrame(left_panel, text="PEQ Configuration (Drag & Drop .txt files here)")
-        editor_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        editor_frame.grid(row=1, column=0, sticky='nsew', pady=(0, 10))
         left_panel.rowconfigure(1, weight=1)
         
         self.text_editor = scrolledtext.ScrolledText(editor_frame, wrap=tk.WORD, width=50, height=20,
                                                      font=('Consolas', 10))
-        self.text_editor.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+        self.text_editor.grid(row=0, column=0, sticky='nsew', padx=5, pady=5)
         editor_frame.columnconfigure(0, weight=1)
         editor_frame.rowconfigure(0, weight=1)
         
         # Enable drag and drop on the entire editor frame
-        editor_frame.drop_target_register(DND_FILES)
-        editor_frame.dnd_bind('<<Drop>>', self.drop_file)
+        editor_frame.drop_target_register(DND_FILES)  # type: ignore[attr-defined]
+        editor_frame.dnd_bind('<<Drop>>', self.drop_file)  # type: ignore[attr-defined]
         
         # Also enable on the text editor itself
-        self.text_editor.drop_target_register(DND_FILES)
-        self.text_editor.dnd_bind('<<Drop>>', self.drop_file)
+        self.text_editor.drop_target_register(DND_FILES)  # type: ignore[attr-defined]
+        self.text_editor.dnd_bind('<<Drop>>', self.drop_file)  # type: ignore[attr-defined]
         
         # Add default example
         self.text_editor.insert(tk.END, """# AutoEQ Style PEQ Settings
@@ -106,13 +106,13 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
         
         # Right panel - Settings and visualization
         right_panel = ttk.Frame(main_frame)
-        right_panel.grid(row=0, column=1, rowspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        right_panel.grid(row=0, column=1, rowspan=2, sticky='nsew')
         right_panel.columnconfigure(0, weight=1)
         right_panel.rowconfigure(1, weight=1)
         
         # Settings frame
         settings_frame = ttk.LabelFrame(right_panel, text="Conversion Settings")
-        settings_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        settings_frame.grid(row=0, column=0, sticky='we', pady=(0, 10))
         
         # Settings grid
         row = 0
@@ -159,7 +159,7 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
         
         # Visualization frame
         viz_frame = ttk.LabelFrame(right_panel, text="Frequency Response Preview")
-        viz_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        viz_frame.grid(row=1, column=0, sticky='nsew')
         viz_frame.columnconfigure(0, weight=1)
         viz_frame.rowconfigure(0, weight=1)
         
@@ -169,11 +169,11 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
         self.ax2 = self.fig.add_subplot(122)  # Right plot for verification
         self.fig.subplots_adjust(left=0.08, right=0.98, wspace=0.25)
         self.canvas = FigureCanvasTkAgg(self.fig, master=viz_frame)
-        self.canvas.get_tk_widget().grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+        self.canvas.get_tk_widget().grid(row=0, column=0, sticky='nsew', padx=5, pady=5)
         
         # Bottom panel - Progress and controls
         bottom_panel = ttk.Frame(main_frame)
-        bottom_panel.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        bottom_panel.grid(row=2, column=0, columnspan=2, sticky='we', pady=10)
         
         # Progress bar
         self.progress_var = tk.DoubleVar()
@@ -351,10 +351,10 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
         self.ax1.set_ylabel('Magnitude (dB)')
         self.ax1.set_title('Target PEQ Response')
         self.ax1.grid(True, which='both', alpha=0.3)
-        self.ax1.set_xlim([20, 24000])
+        self.ax1.set_xlim(20, 24000)
         y_min = np.min(response_db) - 3
         y_max = np.max(response_db) + 3
-        self.ax1.set_ylim([y_min, y_max])
+        self.ax1.set_ylim(y_min, y_max)
         
         # Clear right plot
         self.ax2.set_title('FIR Verification (Load a FIR file)')
@@ -542,7 +542,7 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
                 return
             
             # Calculate frequency response
-            from scipy.signal import freqz
+            from scipy.signal import freqz  # type: ignore[import-untyped]
             w, h = freqz(fir_coeffs, worN=8192, fs=fs)
             magnitude_db = 20 * np.log10(np.abs(h))
             
@@ -562,9 +562,9 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
             else:
                 y_min = np.min(magnitude_db) - 3
                 y_max = np.max(magnitude_db) + 3
-                self.ax2.set_ylim([y_min, y_max])
+                self.ax2.set_ylim(y_min, y_max)
             
-            self.ax2.set_xlim([20, fs/2])
+            self.ax2.set_xlim(20, fs/2)
             
             # Calculate and display error if target response exists
             if hasattr(self, 'peq_filters') and self.peq_filters:
@@ -578,7 +578,7 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
                 )
                 
                 # Interpolate target to match FIR frequencies
-                target_interp = np.interp(w, target_freq, target_db)
+                target_interp = np.interp(w, target_freq, target_db)  # type: ignore[arg-type]
                 
                 # Calculate error
                 error = magnitude_db - target_interp

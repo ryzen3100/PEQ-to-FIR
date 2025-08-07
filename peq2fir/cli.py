@@ -5,7 +5,7 @@ import os
 import datetime
 import numpy as np
 from .converter import PEQtoFIR, parse_autoeq_file
-from scipy.io import wavfile
+from scipy.io import wavfile  # type: ignore
 
 
 def save_fir_files(basename: str, output_dir: str, fs: int, fir_coeffs: np.ndarray, 
