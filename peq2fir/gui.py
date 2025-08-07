@@ -6,7 +6,7 @@ import threading
 import numpy as np
 from scipy.io import wavfile
 import json
-from peq_to_fir_converter import PEQtoFIR
+from .converter import PEQtoFIR
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
