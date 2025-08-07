@@ -35,8 +35,8 @@ def save_fir_files(basename: str, output_dir: str, fs: int, fir_coeffs: np.ndarr
 def main():
     parser = argparse.ArgumentParser(description='PEQ to FIR Converter CLI')
     parser.add_argument('input', type=str, help='Input PEQ configuration file')
-    parser.add_argument('-o', '--output', type=str, default='./output',
-                        help='Output directory (default: ./output)')
+    parser.add_argument('-o', '--output', type=str, default='output',
+                        help='Output directory (default: output/)')
     parser.add_argument('--taps', type=int, choices=[2047, 4095, 8191], default=4095,
                         help='Number of FIR filter taps')
     parser.add_argument('--phase', type=str, choices=['linear', 'minimum'], default='linear',
