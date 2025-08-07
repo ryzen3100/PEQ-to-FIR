@@ -24,6 +24,9 @@ tool.sdists_gen.targets = [
 [project.scripts]
 peq2fir = "peq2fir.cli:main"
 
+[project.optional-dependencies]
+test = ["pytest"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["peq2fir"]

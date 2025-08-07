@@ -1,94 +1,126 @@
-# PEQ to FIR Converter
+# PEQ to FIR Converter [![GitHub Fork](https://img.shields.io/badge/GitHub-Fork-green?logo=github)](https://github.com/ryzen3100/PEQ-to-FIR) [![GitHub Original](https://img.shields.io/badge/GitHub-Original-blue?logo=github)](https://github.com/grisys83/PEQ-to-FIR)
 
-Convert AutoEQ-style Parametric EQ settings to high-quality FIR filters using scipy.signal.firwin2.
+An actively maintained fork featuring modern packaging and CLI functionality. Converts AutoEQ-style Parametric EQ settings to high-quality FIR filters using scipy.signal.firwin2.
 
-## Features
+## Key Features
 
-- **Intuitive GUI**: Text editor with drag & drop support
-- **Multiple Filter Types**: Peaking, Low Shelf, High Shelf
-- **Optimized Settings**: 
-  - 2047, 4095 (default), 8191 taps
-  - Linear Phase / Minimum Phase selection
-  - Simultaneous 44.1 kHz / 48 kHz generation
-  - 16-bit / 24-bit / 32-bit float output
-- **Automatic Preamp**: Auto gain adjustment for clipping prevention
-- **Real-time Preview**: Frequency response visualization
-- **Multiple Output Formats**: WAV, TXT, JSON (with metadata)
+### Dual Interface Support
+- **GUI Application**: Intuitive drag-and-drop interface with real-time preview
+- **Command Line Interface**: Scriptable batch processing with arguments
+
+### Advanced Filter Options
+- **Phase Types**: Linear or Minimum phase output
+- **Tap Count Selection**: 2047, 4095 (default), or 8191 taps
+- **Bit Depth Options**: 16/24/32-bit output formats
+- **Sample Rate Generation**: Simultaneous 44.1kHz & 48kHz output
+
+### Preamp Management
+- File-specified preamp (from input file)
+- Automatic clipping prevention (adjusts overall gain)
+
+### Output Artifacts
+- WAV impulse responses
+- Text coefficient files
+- JSON metadata with error metrics
 
 ## Installation
 
 ```bash
-# GUI version installation
-pip install -r requirements_gui.txt
+# Create virtual environment (recommended)
+python -m venv .venv
+source .venv/bin/activate
 
-# Or install base libraries only
-pip install -r requirements.txt
+# Install with all dependencies
+pip install -e .
 ```
 
 ## Usage
 
-### Run GUI Application
-
+### Command Line Interface
 ```bash
-python peq_to_fir_gui.py
+# Basic conversion
+peq2fir input.peq
+
+# Customized conversion
+peq2fir input.peq \
+  --taps 4095 \
+  --phase linear \
+  --bit-depth 24 \
+  --output my_filters/
+```
+
+**Available Options**:
+- `--taps [2047|4095|8191]`
+- `--phase [linear|minimum]`
+- `--bit-depth [16|24|32]`
+- `--output <directory>` (default: `output/`)
+
+### GUI Application
+```bash
+python -m peq2fir.gui
 ```
 
 ### Programmatic Usage
-
 ```python
-from peq_to_fir_converter import PEQtoFIR
+from peq2fir.converter import PEQtoFIR
 
-# PEQ settings
+# Configure converter
+converter = PEQtoFIR(fs=48000, num_taps=4095)
+
+# Create filter definitions
 peq_filters = [
     {'type': 'peaking', 'freq': 100, 'q': 1.41, 'gain': -3.0},
     {'type': 'highshelf', 'freq': 10000, 'q': 0.707, 'gain': 3.0}
 ]
 
-# Convert
-converter = PEQtoFIR(fs=48000, num_taps=4095)
-fir_coeffs = converter.design_fir_filter(peq_filters, apply_preamp=True)
+# Generate FIR filter
+fir_coeffs = converter.design_fir_filter(
+    peq_filters,
+    use_file_preamp=True,
+    use_auto_preamp=True
+)
 ```
 
-## PEQ Format
+## PEQ Format Guidelines
 
 ### AutoEQ Format
-```
-Filter 1: ON PK Fc 100 Hz Gain -3.0 dB Q 1.41
-Filter 2: ON HS Fc 10000 Hz Gain 3.0 dB Q 0.707
+```text
+Preamp: -3.7 dB
+Filter 1: ON PK Fc 65 Hz Gain -4.5 dB Q 0.8
+Filter 2: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
 ```
 
 ### Simple Format
-```
+```text
 peaking 100 1.41 -3.0
 highshelf 10000 0.707 3.0
 ```
 
+## Output Files Structure
+When processing `input.peq`, output includes:
+- `input_FIR_Linear_4095taps_44100Hz.wav`
+- `input_FIR_Linear_4095taps_48000Hz.wav`
+- `input_FIR_Linear_4095taps_44100Hz.txt`
+- `input_FIR_Linear_4095taps_48000Hz.txt`
+- `filter_metadata.json` (with error metrics)
+
 ## Recommended Settings
 
-- **General Music Listening**: 4095 taps, Linear Phase
-- **Real-time Monitoring**: 2047 taps, Minimum Phase
-- **Maximum Precision**: 8191 taps, Linear Phase
-
-## Output Files
-
-- `FIR_linear_4095taps_44100Hz.wav`: 44.1 kHz impulse response
-- `FIR_linear_4095taps_48000Hz.wav`: 48 kHz impulse response
-- `FIR_linear_4095taps_44100Hz.txt`: Filter coefficients (text)
-- `FIR_linear_4095taps_48000Hz.txt`: Filter coefficients (text)
-- `filter_metadata.json`: Settings and performance metrics
-
-## Web Version
-
-An accurate web version is available at: https://grisys83.github.io/PEQ-to-FIR/
-
-The web version implements an accurate JavaScript port of scipy.signal.firwin2 and produces results within 0.5dB of the Python version.
+| Use Case               | Taps | Phase   | Bit Depth |
+|------------------------|------|---------|-----------|
+| Music Listening        | 4095 | Linear  | 24        |
+| Real-time Processing   | 2047 | Minimum | 16        |
+| Studio Mastering       | 8191 | Linear  | 32        |
 
 ## Credits
 
-- **scipy.signal.firwin2** - The reference implementation for FIR filter design
-- **AutoEQ** - Parametric EQ format and methodology by jaakkopasanen
-- Developed with assistance from **Claude (Anthropic)** and **Gemini 2.5 Pro (Google)**
+- **Original Implementation**: [grisys83](https://github.com/grisys83/PEQ-to-FIR)
+- **Modern Fork**: [ryzen3100](https://github.com/ryzen3100/PEQ-to-FIR) - Added CLI, packaging, and test suite
+- **Core Technology**: [scipy.signal.firwin2](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.firwin2.html)
+- **Filter Format**: [AutoEQ](https://github.com/jaakkopasanen/AutoEQ) by jaakkopasanen
 
 ## License
 
 MIT License
+
+> *Note: This fork maintains compatibility with the original project while modernizing the development experience.*
