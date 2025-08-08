@@ -20,9 +20,9 @@ An actively maintained fork featuring modern packaging and CLI functionality. Co
 - Automatic clipping prevention (adjusts overall gain)
 
 ### Output Artifacts
-- WAV impulse responses
-- Text coefficient files
-- JSON metadata with error metrics
+- WAV impulse responses (handled by WAVOutputHandler)
+- Text coefficient files (handled by TextOutputHandler)
+- JSON metadata with filter characteristics and error analysis (handled by JSONOutputHandler)
 
 ## Installation
 
@@ -64,7 +64,7 @@ python -m peq2fir.gui
 
 ### Programmatic Usage
 ```python
-from peq2fir.converter import PEQtoFIR
+from peq2fir import PEQtoFIR
 
 # Configure converter
 converter = PEQtoFIR(fs=48000, num_taps=4095)
@@ -106,8 +106,26 @@ When processing `input.peq`, output includes:
 - `input_FIR_Linear_4095taps_48000Hz.wav`
 - `input_FIR_Linear_4095taps_44100Hz.txt`
 - `input_FIR_Linear_4095taps_48000Hz.txt`
-- `filter_metadata.json` (with error metrics)
+- `input_FIR_metadata.json` (with filter characteristics and error analysis)
 - `input_FIR_Stereo_Linear_4095taps_44100Hz.wav` (stereo output example)
+
+## Architecture
+
+- **Core functionality**:
+  - Implemented in `peq2fir/converter.py`
+  - Contains `PEQtoFIR` class with biquad response calculation and FIR design
+  - Unified preamp handling via `get_final_target_response`
+  - File I/O separated through output handler interfaces
+
+- **Interfaces**:
+  - `peq2fir/gui.py`: Tkinter-based GUI with visualization
+  - `peq2fir/cli.py`: Command-line interface with comprehensive argument support
+  - `peq2fir/output_handler.py`: Abstract base classes for output handlers
+
+- **Output handlers**:
+  - `WAVOutputHandler`: Generates WAV impulse responses (16/24/32-bit)
+  - `TextOutputHandler`: Generates text coefficient files
+  - `JSONOutputHandler`: Generates metadata with filter characteristics and error analysis
 
 ## Recommended Settings
 
