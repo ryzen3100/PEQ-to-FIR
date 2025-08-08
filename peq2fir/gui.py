@@ -453,8 +453,8 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
                     if np.max(np.abs(fir_coeffs)) > 1.0:
                         print(f"Warning: FIR coefficients exceed [-1, 1] (max: {np.max(np.abs(fir_coeffs)):.3f}). Clipping may occur in integer formats.")
                     wav_data = (fir_coeffs * 8388607).astype(np.int32)
-            if self.channels.get() == 2:
-                wav_data = np.column_stack((wav_data, wav_data))
+                if self.channels.get() == 2:
+                    wav_data = np.column_stack((wav_data, wav_data))
                 
                 wav_path = os.path.join(output_dir, f"{base_name}.wav")
                 wavfile.write(wav_path, fs, wav_data)
