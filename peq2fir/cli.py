@@ -5,32 +5,39 @@ import os
 import datetime
 import numpy as np
 from .converter import PEQtoFIR, parse_autoeq_file
-from scipy.io import wavfile  # type: ignore
+from .output_handler import OutputHandler, WAVOutputHandler, TextOutputHandler, JSONOutputHandler
 
 
 def save_fir_files(basename: str, output_dir: str, fs: int, fir_coeffs: np.ndarray, 
               num_taps: int, phase_type: str, bit_depth: int, num_channels: int = 1):
-    # Save WAV file
-    if bit_depth == 32:
-        wav_data = fir_coeffs.astype(np.float32)
-    elif bit_depth == 16:
-        if np.max(np.abs(fir_coeffs)) > 1.0:
-            print(f"Warning: FIR coefficients exceed [-1, 1] (max: {np.max(np.abs(fir_coeffs)):.3f})")
-        wav_data = (fir_coeffs * 32767).astype(np.int16)
-    else:  # 24-bit
-        if np.max(np.abs(fir_coeffs)) > 1.0:
-            print(f"Warning: FIR coefficients exceed [-1, 1] (max: {np.max(np.abs(fir_coeffs)):.3f})")
-        wav_data = (fir_coeffs * 8388607).astype(np.int32)
-    if num_channels == 2:
-        wav_data = np.column_stack((wav_data, wav_data))
-
+    """
+    Save FIR coefficients using output handlers
+    
+    Returns:
+        Tuple of output file paths
+    """
+    # Create output handlers
+    wav_handler = WAVOutputHandler(bit_depth=bit_depth)
+    text_handler = TextOutputHandler()
+    json_handler = JSONOutputHandler()
+    
+    # Prepare metadata
+    metadata = {
+        'fs': fs,
+        'num_taps': num_taps,
+        'phase_type': phase_type,
+        'num_channels': num_channels,
+        'basename': basename
+    }
+    
+    # Save using handlers
+    wav_handler.save(fir_coeffs, metadata, output_dir)
+    text_handler.save(fir_coeffs, metadata, output_dir)
+    
+    # Return paths (implementation in handlers would set these)
     channel_str = "Stereo_" if num_channels == 2 else ""
     wav_path = os.path.join(output_dir, f"{basename}_{channel_str}{phase_type.capitalize()}_{num_taps}taps_{fs}Hz.wav")
-    wavfile.write(wav_path, fs, wav_data)
-    
-    # Save text file
     txt_path = os.path.join(output_dir, f"{basename}_{phase_type.capitalize()}_{num_taps}taps_{fs}Hz.txt")
-    np.savetxt(txt_path, fir_coeffs, fmt='%.10e')
     
     return wav_path, txt_path
 
@@ -46,6 +53,8 @@ def main():
                         help='Phase type of the FIR filter')
     parser.add_argument('--bit-depth', type=int, choices=[16, 24, 32], default=16,
                         help='Output bit depth')
+    parser.add_argument('--multiprocess', action='store_true',
+                        help='Use multiprocessing for large FIR designs')
     parser.add_argument('--channels', type=int, choices=[1,2], default=1,
                         help='Number of channels (1=mono, 2=stereo)')
     parser.add_argument('--sample-rates', nargs='+', type=int, 
@@ -78,7 +87,8 @@ def main():
             peq_filters,
             use_file_preamp=args.file_preamp,
             use_auto_preamp=args.auto_preamp,
-            phase_type=args.phase
+            phase_type=args.phase,
+            use_multiprocessing=args.multiprocess
         )
 
         # Save output files
@@ -112,9 +122,10 @@ def main():
         'sample_rates': args.sample_rates,
         'results': results
     }
-    json_path = os.path.join(args.output, 'filter_metadata.json')
-    with open(json_path, 'w') as f:
-        json.dump(metadata, f, indent=2)
+    
+    # Use JSON output handler
+    json_handler = JSONOutputHandler()
+    json_handler.save(np.array([]), metadata, args.output)
 
     # Print completion summary
     print("\nConversion completed!")

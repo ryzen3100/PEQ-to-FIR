@@ -4,7 +4,7 @@ from tkinterdnd2 import DND_FILES, TkinterDnD  # type: ignore[import-untyped]
 import os
 import threading
 import numpy as np
-from scipy.io import wavfile  # type: ignore[import-untyped]
+from .output_handler import OutputHandler, WAVOutputHandler, TextOutputHandler, JSONOutputHandler
 import json
 from .converter import PEQtoFIR
 import matplotlib
@@ -412,6 +412,11 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
             print(f"GUI: File preamp checkbox: {use_file_preamp}")
             print(f"GUI: Auto preamp checkbox: {use_auto_preamp}")
             
+            # Create output handlers
+            wav_handler = WAVOutputHandler(bit_depth=self.bit_depth.get())
+            text_handler = TextOutputHandler()
+            json_handler = JSONOutputHandler()
+            
             for fs in self.sample_rates:
                 self.root.after(0, lambda fs=fs: self.status_label.config(
                               text=f"Converting for {fs} Hz..."))
@@ -440,28 +445,18 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
                     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
                     base_name = f"{timestamp}_FIR_{self.phase_type.get().capitalize()}_{self.num_taps.get()}taps_{fs}Hz"
                 
-                # Save as WAV - REMOVE NORMALIZATION
-                if self.bit_depth.get() == 32:
-                    wav_data = fir_coeffs.astype(np.float32)
-                elif self.bit_depth.get() == 16:
-                    # The values should already be in [-1, 1]. We just scale to int range.
-                    # Add a small check for safety, but do not normalize.
-                    if np.max(np.abs(fir_coeffs)) > 1.0:
-                        print(f"Warning: FIR coefficients exceed [-1, 1] (max: {np.max(np.abs(fir_coeffs)):.3f}). Clipping may occur in integer formats.")
-                    wav_data = (fir_coeffs * 32767).astype(np.int16)
-                else:  # 24-bit
-                    if np.max(np.abs(fir_coeffs)) > 1.0:
-                        print(f"Warning: FIR coefficients exceed [-1, 1] (max: {np.max(np.abs(fir_coeffs)):.3f}). Clipping may occur in integer formats.")
-                    wav_data = (fir_coeffs * 8388607).astype(np.int32)
-                if self.channels.get() == 2:
-                    wav_data = np.column_stack((wav_data, wav_data))
+                # Prepare metadata
+                metadata = {
+                    'fs': fs,
+                    'num_taps': self.num_taps.get(),
+                    'phase_type': self.phase_type.get(),
+                    'num_channels': self.channels.get(),
+                    'basename': base_name
+                }
                 
-                wav_path = os.path.join(output_dir, f"{base_name}.wav")
-                wavfile.write(wav_path, fs, wav_data)
-                
-                # Save as text
-                txt_path = os.path.join(output_dir, f"{base_name}.txt")
-                np.savetxt(txt_path, fir_coeffs, fmt='%.10e')
+                # Save files using handlers
+                wav_handler.save(fir_coeffs, metadata, output_dir)
+                text_handler.save(fir_coeffs, metadata, output_dir)
                 
                 # Analyze results using the EXACT same settings
                 analysis = converter.analyze_filter(
@@ -480,7 +475,7 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
                 progress = (current_step / total_steps) * 100
                 self.root.after(0, self.progress_var.set, progress)
             
-            # Save metadata JSON
+            # Prepare metadata for JSON handler
             metadata = {
                 'peq_filters': self.peq_filters,
                 'num_taps': self.num_taps.get(),
@@ -493,9 +488,8 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
                 'results': results
             }
             
-            json_path = os.path.join(output_dir, 'filter_metadata.json')
-            with open(json_path, 'w') as f:
-                json.dump(metadata, f, indent=2)
+            # Save metadata using JSON handler
+            json_handler.save(np.array([]), metadata, output_dir)
             
             # Show completion message
             msg = "Conversion completed!\n\n"

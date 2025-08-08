@@ -1,13 +1,18 @@
 import numpy as np
 from scipy.signal import firwin2, freqz, minimum_phase, group_delay  # type: ignore
-import matplotlib.pyplot as plt
 from typing import List, Dict, Tuple, Optional, cast
-import json
+from .output_handler import OutputHandler
+from .exceptions import *
 
 class PEQtoFIR:
     """Convert AutoEQ-style Parametric EQ settings to FIR filter coefficients"""
     
     def __init__(self, fs: int = 48000, num_taps: int = 4097):
+        # Validate parameters
+        if fs <= 0:
+            raise InvalidSampleRateError(fs)
+        if num_taps % 2 == 0 or num_taps < 3:
+            raise InvalidTapCountError(num_taps, "Number of taps must be odd and at least 3")
         """
         Initialize the converter
         
@@ -31,7 +36,20 @@ class PEQtoFIR:
         
         Returns:
             Complex frequency response
+        
+        Raises:
+            FilterValidationError: If filter parameters are invalid
         """
+        # Validate parameters
+        if fc <= 0 or fc >= self.nyquist:
+            raise FilterValidationError("peaking", {"fc": fc, "Q": Q, "gain_db": gain_db}, 
+                                      f"Center frequency must be between 0 and {self.nyquist} Hz")
+        if Q <= 0:
+            raise FilterValidationError("peaking", {"fc": fc, "Q": Q, "gain_db": gain_db}, 
+                                      "Quality factor must be positive")
+        if np.max(frequencies) > self.nyquist + 1e-6:  # Allow small floating-point tolerance
+            raise FilterValidationError("peaking", {"fc": fc, "Q": Q, "gain_db": gain_db}, 
+                                      f"Frequencies must be below Nyquist ({self.nyquist} Hz)")
         w = 2 * np.pi * frequencies / self.fs
         wc = 2 * np.pi * fc / self.fs
         
@@ -68,7 +86,20 @@ class PEQtoFIR:
         
         Returns:
             Complex frequency response
+        
+        Raises:
+            FilterValidationError: If filter parameters are invalid
         """
+        # Validate parameters
+        if fc <= 0 or fc >= self.nyquist:
+            raise FilterValidationError("highshelf", {"fc": fc, "Q": Q, "gain_db": gain_db}, 
+                                      f"Cutoff frequency must be between 0 and {self.nyquist} Hz")
+        if Q <= 0:
+            raise FilterValidationError("highshelf", {"fc": fc, "Q": Q, "gain_db": gain_db}, 
+                                      "Quality factor must be positive")
+        if np.max(frequencies) > self.nyquist + 1e-6:  # Allow small floating-point tolerance
+            raise FilterValidationError("highshelf", {"fc": fc, "Q": Q, "gain_db": gain_db}, 
+                                      f"Frequencies must be below Nyquist ({self.nyquist} Hz)")
         w = 2 * np.pi * frequencies / self.fs
         wc = 2 * np.pi * fc / self.fs
         
@@ -105,7 +136,20 @@ class PEQtoFIR:
         
         Returns:
             Complex frequency response
+        
+        Raises:
+            FilterValidationError: If filter parameters are invalid
         """
+        # Validate parameters
+        if fc <= 0 or fc >= self.nyquist:
+            raise FilterValidationError("lowshelf", {"fc": fc, "Q": Q, "gain_db": gain_db}, 
+                                      f"Cutoff frequency must be between 0 and {self.nyquist} Hz")
+        if Q <= 0:
+            raise FilterValidationError("lowshelf", {"fc": fc, "Q": Q, "gain_db": gain_db}, 
+                                      "Quality factor must be positive")
+        if np.max(frequencies) > self.nyquist + 1e-6:  # Allow small floating-point tolerance
+            raise FilterValidationError("lowshelf", {"fc": fc, "Q": Q, "gain_db": gain_db}, 
+                                      f"Frequencies must be below Nyquist ({self.nyquist} Hz)")
         w = 2 * np.pi * frequencies / self.fs
         wc = 2 * np.pi * fc / self.fs
         
@@ -214,7 +258,8 @@ class PEQtoFIR:
                          use_file_preamp: bool = True,
                          use_auto_preamp: bool = True,
                          phase_type: str = 'linear', 
-                         window: str = 'hamming') -> np.ndarray:
+                         window: str = 'hamming',
+                         use_multiprocessing: bool = False) -> np.ndarray:
         """
         Design FIR filter from PEQ settings
         
@@ -249,8 +294,26 @@ class PEQtoFIR:
         freq, idx = np.unique(freq, return_index=True)
         gain = gain[idx]
         
-        # Design linear phase FIR filter using firwin2
-        fir_coeffs = firwin2(self.num_taps, freq, gain, fs=self.fs, window=window)
+        # Design FIR filter with optional multiprocessing
+        if use_multiprocessing and self.num_taps > 2048:
+            # Use multiprocessing for large tap counts
+            from concurrent.futures import ProcessPoolExecutor
+            
+            def design_segment(segment):
+                return firwin2(len(segment), freq, gain, fs=self.fs, window=window)
+                
+            # Split into segments for parallel processing
+            segment_size = max(1024, self.num_taps // 4)
+            segments = [np.arange(i, min(i+segment_size, self.num_taps)) 
+                       for i in range(0, self.num_taps, segment_size)]
+            
+            with ProcessPoolExecutor() as executor:
+                results = list(executor.map(design_segment, segments))
+                
+            fir_coeffs = np.concatenate(results)
+        else:
+            # Single-threaded design
+            fir_coeffs = firwin2(self.num_taps, freq, gain, fs=self.fs, window=window)
         
         # Convert to minimum phase if requested
         if phase_type.lower() == 'minimum':
@@ -307,8 +370,7 @@ class PEQtoFIR:
     
     def analyze_filter(self, fir_coeffs: np.ndarray, peq_filters: List[Dict], 
                       use_file_preamp: bool = True,
-                      use_auto_preamp: bool = True,
-                      plot: bool = False) -> Dict:
+                      use_auto_preamp: bool = True) -> Dict:
         """
         Analyze the designed FIR filter and compare with target
         
@@ -371,29 +433,6 @@ class PEQtoFIR:
         peak_idx = np.argmax(np.abs(fir_coeffs))
         peak_offset = peak_idx - center
         
-        if plot:
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-            
-            # Magnitude response
-            ax1.semilogx(w, target_interp, 'b--', label='Target (PEQ)', linewidth=2)
-            ax1.semilogx(w, actual_db, 'r-', label='Actual (FIR)', linewidth=1.5)
-            ax1.set_xlabel('Frequency (Hz)')
-            ax1.set_ylabel('Magnitude (dB)')
-            ax1.set_title(f'FIR Filter Response ({self.num_taps} taps)')
-            ax1.grid(True, which='both', alpha=0.3)
-            ax1.set_xlim([20, self.nyquist])
-            ax1.legend()
-            
-            # Error plot
-            ax2.semilogx(w, actual_db - target_interp, 'g-', linewidth=1.5)
-            ax2.set_xlabel('Frequency (Hz)')
-            ax2.set_ylabel('Error (dB)')
-            ax2.set_title(f'Response Error (Max: {max_error:.2f} dB, RMS: {rms_error:.2f} dB)')
-            ax2.grid(True, which='both', alpha=0.3)
-            ax2.set_xlim([20, self.nyquist])
-            
-            plt.tight_layout()
-            plt.show()
         
         return {
             'max_error_db': max_error,
@@ -444,39 +483,3 @@ def parse_autoeq_file(filename: str) -> List[Dict]:
     
     return filters
 
-# Example usage
-if __name__ == "__main__":
-    # Example PEQ settings (AutoEQ style)
-    example_peq = [
-        {'type': 'peaking', 'freq': 100, 'q': 1.41, 'gain': -3.0},
-        {'type': 'peaking', 'freq': 250, 'q': 2.0, 'gain': 2.5},
-        {'type': 'peaking', 'freq': 1000, 'q': 1.5, 'gain': -1.5},
-        {'type': 'peaking', 'freq': 2000, 'q': 2.0, 'gain': 5.8},
-        {'type': 'peaking', 'freq': 4000, 'q': 1.8, 'gain': -2.0},
-        {'type': 'highshelf', 'freq': 10000, 'q': 0.707, 'gain': 3.0}
-    ]
-    
-    # Create converter
-    converter = PEQtoFIR(fs=48000, num_taps=4097)
-    
-    # Design FIR filter
-    print("Designing linear phase FIR filter...")
-    fir_linear = converter.design_fir_filter(example_peq, use_file_preamp=True, use_auto_preamp=True, phase_type='linear')
-    
-    # Analyze the result
-    print("\nAnalyzing filter response...")
-    results = converter.analyze_filter(fir_linear, example_peq, plot=True)
-    
-    print(f"\nFilter characteristics:")
-    print(f"- Latency: {results['latency_ms']:.1f} ms")
-    print(f"- Max error: {results['max_error_db']:.2f} dB")
-    print(f"- RMS error: {results['rms_error_db']:.2f} dB")
-    
-    # Design minimum phase version
-    print("\nDesigning minimum phase FIR filter...")
-    fir_minimum = converter.design_fir_filter(example_peq, use_file_preamp=True, use_auto_preamp=True, phase_type='minimum')
-    
-    # Save coefficients
-    np.savetxt('fir_linear_phase.txt', fir_linear)
-    np.savetxt('fir_minimum_phase.txt', fir_minimum)
-    print("\nFilter coefficients saved to text files.")
