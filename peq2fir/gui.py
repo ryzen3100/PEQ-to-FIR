@@ -32,6 +32,7 @@ class PEQtoFIRGUI:
         self.num_taps = tk.IntVar(value=4095)
         self.phase_type = tk.StringVar(value="linear")
         self.bit_depth = tk.IntVar(value=16)
+        self.channels = tk.IntVar(value=1)  # Number of channels (1=mono, 2=stereo)
         self.apply_file_preamp = tk.BooleanVar(value=True)  # Apply preamp from file
         self.apply_auto_preamp = tk.BooleanVar(value=True)  # Apply automatic clipping prevention
         self.peq_filters = []
@@ -143,6 +144,14 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
         ttk.Radiobutton(bit_frame, text="32-bit float", variable=self.bit_depth, 
                        value=32).pack(side=tk.LEFT, padx=5)
         
+        row += 1
+        ttk.Label(settings_frame, text="Channels:").grid(row=row, column=0, sticky=tk.W, padx=5, pady=2)
+        channels_frame = ttk.Frame(settings_frame)
+        channels_frame.grid(row=row, column=1, sticky=tk.W, padx=5, pady=2)
+        ttk.Radiobutton(channels_frame, text="Mono", variable=self.channels, 
+                       value=1).pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(channels_frame, text="Stereo", variable=self.channels, 
+                       value=2).pack(side=tk.LEFT, padx=5)
         row += 1
         preamp_frame = ttk.Frame(settings_frame)
         preamp_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W, padx=5, pady=5)
@@ -422,9 +431,10 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
                 self.root.after(0, self.progress_var.set, progress)
                 
                 # Generate filename
+                channel_str = "Stereo_" if self.channels.get() == 2 else ""
                 if self.loaded_filename:
                     # Use loaded filename
-                    base_name = f"{self.loaded_filename}_FIR_{self.phase_type.get().capitalize()}_{self.num_taps.get()}taps_{fs}Hz"
+                    base_name = f"{self.loaded_filename}_FIR_{channel_str}{self.phase_type.get().capitalize()}_{self.num_taps.get()}taps_{fs}Hz"
                 else:
                     # Use timestamp
                     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
@@ -443,6 +453,8 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
                     if np.max(np.abs(fir_coeffs)) > 1.0:
                         print(f"Warning: FIR coefficients exceed [-1, 1] (max: {np.max(np.abs(fir_coeffs)):.3f}). Clipping may occur in integer formats.")
                     wav_data = (fir_coeffs * 8388607).astype(np.int32)
+            if self.channels.get() == 2:
+                wav_data = np.column_stack((wav_data, wav_data))
                 
                 wav_path = os.path.join(output_dir, f"{base_name}.wav")
                 wavfile.write(wav_path, fs, wav_data)
@@ -474,6 +486,7 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
                 'num_taps': self.num_taps.get(),
                 'phase_type': self.phase_type.get(),
                 'bit_depth': self.bit_depth.get(),
+                'num_channels': self.channels.get(),
                 'file_preamp_applied': self.apply_file_preamp.get(),
                 'auto_preamp_applied': self.apply_auto_preamp.get(),
                 'file_preamp_value': file_preamp_db if self.apply_file_preamp.get() else 0.0,

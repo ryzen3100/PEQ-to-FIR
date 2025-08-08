@@ -74,10 +74,13 @@ Thumbs.db
 *.txt
 !requirements*.txt
 !example_*.txt
+output/
 
 # Temporary files
 *.tmp
 *.bak
+temp/
+plans/
 
 # Claude assistant files
 CLAUDE.md

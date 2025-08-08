@@ -9,7 +9,7 @@ from scipy.io import wavfile  # type: ignore
 
 
 def save_fir_files(basename: str, output_dir: str, fs: int, fir_coeffs: np.ndarray, 
-              num_taps: int, phase_type: str, bit_depth: int):
+              num_taps: int, phase_type: str, bit_depth: int, num_channels: int = 1):
     # Save WAV file
     if bit_depth == 32:
         wav_data = fir_coeffs.astype(np.float32)
@@ -21,8 +21,11 @@ def save_fir_files(basename: str, output_dir: str, fs: int, fir_coeffs: np.ndarr
         if np.max(np.abs(fir_coeffs)) > 1.0:
             print(f"Warning: FIR coefficients exceed [-1, 1] (max: {np.max(np.abs(fir_coeffs)):.3f})")
         wav_data = (fir_coeffs * 8388607).astype(np.int32)
+    if num_channels == 2:
+        wav_data = np.column_stack((wav_data, wav_data))
 
-    wav_path = os.path.join(output_dir, f"{basename}_{phase_type.capitalize()}_{num_taps}taps_{fs}Hz.wav")
+    channel_str = "Stereo_" if num_channels == 2 else ""
+    wav_path = os.path.join(output_dir, f"{basename}_{channel_str}{phase_type.capitalize()}_{num_taps}taps_{fs}Hz.wav")
     wavfile.write(wav_path, fs, wav_data)
     
     # Save text file
@@ -43,6 +46,8 @@ def main():
                         help='Phase type of the FIR filter')
     parser.add_argument('--bit-depth', type=int, choices=[16, 24, 32], default=16,
                         help='Output bit depth')
+    parser.add_argument('--channels', type=int, choices=[1,2], default=1,
+                        help='Number of channels (1=mono, 2=stereo)')
     parser.add_argument('--sample-rates', nargs='+', type=int, 
                         default=[44100, 48000], help='Sample rates to generate (default: 44100 48000)')
     parser.add_argument('--no-file-preamp', action='store_false', dest='file_preamp',
@@ -79,7 +84,7 @@ def main():
         # Save output files
         wav_path, txt_path = save_fir_files(
             basename, args.output, fs, fir_coeffs,
-            args.taps, args.phase, args.bit_depth
+            args.taps, args.phase, args.bit_depth, num_channels=args.channels
         )
         
         # Analyze results
@@ -101,6 +106,7 @@ def main():
         'num_taps': args.taps,
         'phase_type': args.phase,
         'bit_depth': args.bit_depth,
+        'num_channels': args.channels,
         'file_preamp_applied': args.file_preamp,
         'auto_preamp_applied': args.auto_preamp,
         'sample_rates': args.sample_rates,

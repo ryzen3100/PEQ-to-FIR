@@ -1,4 +1,5 @@
-# PEQ to FIR Converter [![GitHub Fork](https://img.shields.io/badge/GitHub-Fork-green?logo=github)](https://github.com/ryzen3100/PEQ-to-FIR) [![GitHub Original](https://img.shields.io/badge/GitHub-Original-blue?logo=github)](https://github.com/grisys83/PEQ-to-FIR)
+# PEQ to FIR Converter
+[![GitHub Fork](https://img.shields.io/badge/GitHub-Fork-green?logo=github)](https://github.com/ryzen3100/PEQ-to-FIR) [![GitHub Original](https://img.shields.io/badge/GitHub-Original-blue?logo=github)](https://github.com/grisys83/PEQ-to-FIR)
 
 An actively maintained fork featuring modern packaging and CLI functionality. Converts AutoEQ-style Parametric EQ settings to high-quality FIR filters using scipy.signal.firwin2.
 
@@ -53,6 +54,7 @@ peq2fir input.peq \
 - `--taps [2047|4095|8191]`
 - `--phase [linear|minimum]`
 - `--bit-depth [16|24|32]`
+- `--channels {1,2}` (default: 1)
 - `--output <directory>` (default: `output/`)
 
 ### GUI Application
@@ -96,6 +98,8 @@ peaking 100 1.41 -3.0
 highshelf 10000 0.707 3.0
 ```
 
+> Note: Stereo output files include `Stereo_` in the filename.
+
 ## Output Files Structure
 When processing `input.peq`, output includes:
 - `input_FIR_Linear_4095taps_44100Hz.wav`
@@ -103,6 +107,7 @@ When processing `input.peq`, output includes:
 - `input_FIR_Linear_4095taps_44100Hz.txt`
 - `input_FIR_Linear_4095taps_48000Hz.txt`
 - `filter_metadata.json` (with error metrics)
+- `input_FIR_Stereo_Linear_4095taps_44100Hz.wav` (stereo output example)
 
 ## Recommended Settings
 
