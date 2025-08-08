@@ -16,7 +16,7 @@ def test_stereo_output_generation(tmp_path):
     bit_depth = 16
     
     # Save stereo output
-    wav_path, _ = save_fir_files(
+    wav_path, txt_path = save_fir_files(
         basename, output_dir, fs, fir_coeffs,
         num_taps, phase_type, bit_depth, num_channels=2
     )
@@ -44,7 +44,7 @@ def test_mono_output_generation(tmp_path):
     bit_depth = 16
     
     # Save mono output
-    wav_path, _ = save_fir_files(
+    wav_path, txt_path = save_fir_files(
         basename, output_dir, fs, fir_coeffs,
         num_taps, phase_type, bit_depth, num_channels=1
     )
