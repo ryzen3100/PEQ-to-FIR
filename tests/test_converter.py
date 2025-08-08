@@ -159,3 +159,15 @@ def test_analyze_filter_metrics():
     assert 'rms_error_db' in analysis
     assert 'latency_ms' in analysis
     assert analysis['max_error_db'] < 1.0  # Should be within reasonable error bounds
+    """Verify analysis reports reasonable metrics"""
+    converter = PEQtoFIR()
+    peq_filters = [
+        {'type': 'peaking', 'freq': 1000, 'q': 1.41, 'gain': -3.0}
+    ]
+    fir_coeffs = converter.design_fir_filter(peq_filters)
+    analysis = converter.analyze_filter(fir_coeffs, peq_filters)
+    
+    assert 'max_error_db' in analysis
+    assert 'rms_error_db' in analysis
+    assert 'latency_ms' in analysis
+    assert analysis['max_error_db'] < 1.0  # Should be within reasonable error bounds

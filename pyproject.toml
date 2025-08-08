@@ -17,9 +17,8 @@ dependencies = [
     "tkinterdnd2>=0.3.0",
 ]
 
-tool.sdists_gen.targets = [
-  "pyproject.toml",
-]
+[tool.sdists_gen]
+targets = ["pyproject.toml"]
 
 [project.scripts]
 peq2fir = "peq2fir.cli:main"
