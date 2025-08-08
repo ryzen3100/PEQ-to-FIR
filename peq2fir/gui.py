@@ -513,6 +513,8 @@ Filter 6: ON HS Fc 10000 Hz Gain 2.0 dB Q 0.707
     
     def verify_fir_file(self):
         """Load and verify a FIR filter file"""
+        from scipy.io import wavfile  # Import locally to avoid circular dependency
+        
         file_path = filedialog.askopenfilename(
             title="Select FIR filter file to verify",
             filetypes=[("WAV files", "*.wav"), ("Text files", "*.txt"), ("All files", "*.*")]

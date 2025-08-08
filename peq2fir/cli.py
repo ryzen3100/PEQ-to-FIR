@@ -5,7 +5,7 @@ import os
 import datetime
 import numpy as np
 from .converter import PEQtoFIR, parse_autoeq_file
-from .output_handler import OutputHandler, WAVOutputHandler, TextOutputHandler, JSONOutputHandler
+from .output_handler import WAVOutputHandler, TextOutputHandler, JSONOutputHandler
 
 
 def save_fir_files(basename: str, output_dir: str, fs: int, fir_coeffs: np.ndarray, 
@@ -19,7 +19,6 @@ def save_fir_files(basename: str, output_dir: str, fs: int, fir_coeffs: np.ndarr
     # Create output handlers
     wav_handler = WAVOutputHandler(bit_depth=bit_depth)
     text_handler = TextOutputHandler()
-    json_handler = JSONOutputHandler()
     
     # Prepare metadata
     metadata = {
@@ -31,13 +30,8 @@ def save_fir_files(basename: str, output_dir: str, fs: int, fir_coeffs: np.ndarr
     }
     
     # Save using handlers
-    wav_handler.save(fir_coeffs, metadata, output_dir)
-    text_handler.save(fir_coeffs, metadata, output_dir)
-    
-    # Return paths (implementation in handlers would set these)
-    channel_str = "Stereo_" if num_channels == 2 else ""
-    wav_path = os.path.join(output_dir, f"{basename}_{channel_str}{phase_type.capitalize()}_{num_taps}taps_{fs}Hz.wav")
-    txt_path = os.path.join(output_dir, f"{basename}_{phase_type.capitalize()}_{num_taps}taps_{fs}Hz.txt")
+    wav_path = wav_handler.save(fir_coeffs, metadata, output_dir)
+    txt_path = text_handler.save(fir_coeffs, metadata, output_dir)
     
     return wav_path, txt_path
 
@@ -123,7 +117,7 @@ def main():
         'results': results
     }
     
-    # Use JSON output handler
+    # Save metadata JSON
     json_handler = JSONOutputHandler()
     json_handler.save(np.array([]), metadata, args.output)
 
